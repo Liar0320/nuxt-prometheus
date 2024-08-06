@@ -48,4 +48,18 @@ export interface AnalyticsModuleParams {
    * due to https://github.com/artmizu/nuxt-prometheus/issues/42
    */
   enableRequestTimeMeasure?: boolean
+
+  webVitals?: {
+    /**
+     * Enable web vitals tracking
+     * @default true
+     */
+    enabled: boolean
+    /**
+     * The url path to expose the web vitals metrics
+     * @default '/web-vitals'
+     */
+    path: string
+  }
 }
+

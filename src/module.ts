@@ -26,6 +26,10 @@ const module: NuxtModule<Partial<AnalyticsModuleParams>> = defineNuxtModule<Part
     prometheusPath: '/metrics',
     healthCheckPath: '/health',
     enableRequestTimeMeasure: false,
+    webVitals: {
+      enabled: true,
+      path: '/web-vitals',
+    },
   },
   async setup(options, nuxt) {
     const moduleOptions = defu(
@@ -48,6 +52,14 @@ const module: NuxtModule<Partial<AnalyticsModuleParams>> = defineNuxtModule<Part
         route: options.healthCheckPath,
         method: 'get',
         handler: resolve('./runtime/health'),
+      })
+    }
+
+    if (options?.webVitals?.enabled) {
+      addServerHandler({
+        route: options.webVitals.path,
+        method: 'post',
+        handler: resolve('./runtime/web-vitals'),
       })
     }
 
