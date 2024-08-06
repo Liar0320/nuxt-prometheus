@@ -1,35 +1,40 @@
-import { Gauge, register } from 'prom-client'
+// server/api/analytics.ts
+
 import { defineEventHandler, readBody } from 'h3'
-// 定义指标
+import promClient from 'prom-client'
 
-const webVitalsGauges: { [key: string]: { [key: string]: any } } = {
-  CLS: {},
-  FID: {},
-  LCP: {},
-  TTFB: {},
-  FCP: {},
-}
+// 创建一个 Prometheus 指标注册表
+const register = new promClient.Registry()
 
-function createGauge(name: string, path: string) {
-  const gauge = new Gauge({
-    name: `web_vitals_${name.toLowerCase()}`,
-    help: `${name} for ${path}`,
-    labelNames: ['path'],
-  })
-  register.registerMetric(gauge)
-  return gauge
+// 用来存储已经存在的指标
+const webVitalsGauges: Record<string, promClient.Gauge<string>> = {}
+
+function getOrCreateGauge(name: string): promClient.Gauge<string> {
+  // 如果指标不存在，则创建一个新的
+  if (!webVitalsGauges[name]) {
+    webVitalsGauges[name] = new promClient.Gauge({
+      name: `web_vitals_${name.toLowerCase()}`,
+      help: `${name} value`,
+      labelNames: ['path'],
+    })
+    register.registerMetric(webVitalsGauges[name])
+  }
+  return webVitalsGauges[name]
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody(event)
-  const { name, value, path } = body
+  if (event.node.req.method === 'POST') {
+    const body = await readBody(event)
+    const { name, value, path } = body
 
-  if (!webVitalsGauges[name])
-    webVitalsGauges[name] = {}
+    // 获取或创建指标，并更新其值
+    const gauge = getOrCreateGauge(name)
+    gauge.set({ path }, value)
 
-  if (!webVitalsGauges[name][path])
-    webVitalsGauges[name][path] = createGauge(name, path)
-
-  webVitalsGauges[name][path].set({ path }, value)
-  return { status: 200 }
+    return { status: 'success' }
+  }
+  else if (event.node.req.method === 'GET') {
+    event.node.res.setHeader('Content-Type', register.contentType)
+    event.node.res.end(await register.metrics())
+  }
 })
